@@ -151,143 +151,7 @@
 
 ---
 
-## 10) Repository Layout (Expanded Monorepo + Aux Repos)
-
-```
-cloud-platform/
-├── README.md
-├── docs/                # ADRs, threat models, diagrams-as-code (PlantUML/C4)
-├── Makefile
-├── terragrunt.hcl
-├── envs/
-│   ├── prod/
-│   │   ├── eu-west-1/{networking,platform,data,security,observability}
-│   │   └── us-east-1/{networking,platform,data,security,observability}
-│   ├── staging/...
-│   └── dev/...
-├── onprem/              # Terraform for DCs + Ansible for metal
-│   ├── terraform/
-│   │   ├── vsphere/
-│   │   ├── nsx-t/
-│   │   ├── netapp/
-│   │   └── direct-connect/    # DX/LAG/VIF, VGW/TGW attachments
-│   └── ansible/
-│       ├── roles/{nsx,vsphere,netapp,f5,infoblox}
-│       └── inventories/{dc1,dc2,edge}
-├── modules/
-│   ├── aws/{vpc,eks,iam,security-baseline,network-services,data/*,s3-lake,eventing-msk,backup,cloudwan}
-│   ├── azure/{vnet,aks,iam,firewall,private-link}
-│   ├── gcp/{vpc,gke,iam,cloud-router}
-│   └── cross/{otel,grafana-stack,loki-tempo,vault,argocd,istio,cert-manager,external-dns,finops,backstage,crossplane,teleport}
-├── platform-api/        # Crossplane Compositions & XRDs
-├── policies/
-│   ├── conftest/{terraform,k8s}
-│   ├── kyverno/         # Pod Security, image signatures, tag immutability
-│   └── sentinel/
-├── pipelines/
-│   └── github-actions/{terraform,app-delivery,supply-chain,drift-detection,security-gates}
-├── packer/              # Golden AMIs/Images (Bottlerocket, Ubuntu LTS)
-├── backstage/           # IDP config, templates, catalog
-├── ansible/             # Host agents & hardening
-├── apps/
-│   ├── templates/       # Helm app templates (Golden paths)
-│   └── examples/
-└── tests/
-    ├── terratest/       # Go tests for modules
-    └── chaos/           # Litmus experiments as code
-```
-
----
-
-## 11) Code & Config Highlights (new)
-
-### 11.1 Crossplane Composition (Aurora cluster as a K8s CR)
-
-```yaml
-apiVersion: database.example.org/v1alpha1
-kind: XPostgresGlobal
-metadata: { name: teamx-orders-db }
-spec:
-  parameters:
-    engineVersion: "15"
-    global: true
-    backup:
-      retentionDays: 35
-  compositionRef: { name: xrd-aurora-global }
-```
-
-### 11.2 External Secrets Operator (Vault → K8s)
-
-```yaml
-apiVersion: external-secrets.io/v1beta1
-kind: ExternalSecret
-metadata: { name: orders-api-secrets }
-spec:
-  refreshInterval: 1h
-  secretStoreRef: { name: vault-cluster, kind: ClusterSecretStore }
-  target: { name: orders-api, creationPolicy: Owner }
-  data:
-    - secretKey: DATABASE_URL
-      remoteRef: { key: kv/app/orders, property: DATABASE_URL }
-```
-
-### 11.3 Istio Canary via Flagger
-
-```yaml
-apiVersion: flagger.app/v1beta1
-kind: Canary
-metadata: { name: orders }
-spec:
-  targetRef: { apiVersion: apps/v1, kind: Deployment, name: orders }
-  service:
-    port: 8080
-    gateways: [ mesh, istio-system/public-gw ]
-  analysis:
-    interval: 1m
-    threshold: 10
-    maxWeight: 50
-    stepWeight: 5
-    metrics:
-      - name: request-success-rate
-        thresholdRange: { min: 99 }
-      - name: request-duration
-        thresholdRange: { max: 500 }
-```
-
-### 11.4 Terraform: Direct Connect (high-level)
-
-```hcl
-module "dx" {
-  source = "./onprem/terraform/direct-connect"
-  connection_name = "dc1-aws-primary"
-  bandwidth       = "10Gbps"
-  location        = var.dx_location
-  lag_count       = 2
-  vifs = [{ name="prod-private", vlan=123, address_family="ipv4", bgp_asn=65010 }]
-}
-```
-
-### 11.5 Kyverno: Block Unsigned Images
-
-```yaml
-apiVersion: kyverno.io/v1
-kind: ClusterPolicy
-metadata: { name: verify-sigstore }
-spec:
-  validationFailureAction: enforce
-  rules:
-    - name: image-must-be-signed
-      match: { resources: { kinds: [Pod] } }
-      verifyImages:
-        - image: "ghcr.io/company/*"
-          keyless:
-            issuer: "https://token.actions.githubusercontent.com"
-            subject: "repo:company/*:ref:refs/heads/main"
-```
-
----
-
-## 12) Runbooks (Extended)
+## 10) Runbooks
 
 * **New Account/Project**: Account vending (Control Tower Customizations); attach SCP set; enable baseline (CloudTrail/Config/Security Hub/GuardDuty/Detective); create **Network**+**Platform**+**Data** stacks; register with Thanos/Loki/Tempo.
 * **New Region**: Deploy hub VPC/VNet; peer/attach to TGW/Cloud WAN; mesh expansion (east‑west GW); register resolvers; enable DX/ER path.
@@ -297,7 +161,7 @@ spec:
 
 ---
 
-## 13) Governance, Risk & Compliance (GRC)
+## 11) Governance, Risk & Compliance (GRC)
 
 * **Control Library**: Mapped controls (CIS 1.x, ISO Annex A, PCI Req 3/7/10, HIPAA 164.xx) → IaC modules with evidence hooks.
 * **Evidence**: Conftest attestations; Terraform state diffs; OPA decision logs; CloudTrail/Activity Logs → **Audit Lake** (S3/BQ/ADLS) with immutable retention.
@@ -305,14 +169,14 @@ spec:
 
 ---
 
-## 14) Team Topology & RACI
+## 12) Team Topology & RACI
 
 * **Platform Core**: Networking (Cloud WAN/TGW), Platform (K8s/Argo/Backstage), Data (OLTP/Lakehouse), Security (IAM/Vault/SIEM), SRE (Observability/SLOs), FinOps.
 * **Federated Product Teams**: Own services via golden paths; budgets & SLOs; on‑call rotation with SRE support.
 
 ---
 
-## 15) Rollout Plan (Phased)
+## 13) Rollout Plan (Phased)
 
 1. **Foundations**: Multi‑account/org guardrails; hub networks; identity/SSO; audit baseline.
 2. **Platform MVP**: EKS + GitOps; Backstage; Observability core (Prom/Tempo/Loki/Grafana); FinOps plumbing.
@@ -322,7 +186,7 @@ spec:
 
 ---
 
-## 16) Bill of Materials (Services & Tools)
+## 14) Bill of Materials (Services & Tools)
 
 **AWS**: Organizations, Control Tower, IAM Identity Center, IAM, KMS/CloudHSM, Route 53 (+ Resolver/Health Checks), CloudFront, **Global Accelerator**, WAF, Shield Adv, VPC/TGW/GWLB/NAT/Privatelink/Lattice, EKS, ECS/Fargate, Lambda, Step Functions, EventBridge, SQS/SNS, API Gateway, S3, EBS, EFS, **FSx (Lustre/NetApp/Windows)**, RDS/Aurora, DynamoDB, MSK, Kinesis (opt), Glue/EMR/Athena, OpenSearch, ElastiCache, Redshift (opt), CloudTrail, Config, Security Hub, GuardDuty, Detective, Macie, Inspector, CloudWatch/X‑Ray/Logs, Backup, Budgets/Cost Explorer/Anomaly Detection.
 
@@ -334,7 +198,7 @@ spec:
 
 ---
 
-## 17) What Runs Where (Quick Map)
+## 15) What Runs Where (Quick Map)
 
 * **User‑Facing Edge**: Multi‑CDN → GA → WAF → Mesh ingress → Services on EKS/AKS/GKE/OpenShift.
 * **State**: OLTP in Aurora/Dynamo; analytics in ClickHouse/Snowflake/Trino; search in OpenSearch; caches in Redis.
@@ -343,14 +207,13 @@ spec:
 
 ---
 
-## 18) Risks & Mitigations (Selected)
+## 16) Risks & Mitigations (Not decided yet)
 
 * **Global Consistency**: Use CRDT or idempotent eventing; limit cross‑region writes; apply saga patterns.
 * **Blast Radius**: Hard tenant isolation (namespaces+network+IAM+KMS); per‑tenant keys; rate‑limits; cell‑based architecture.
 * **Supply‑Chain**: Mandatory signatures + SBOM attestation; break‑glass reviewed by Security; provenance stored immutably.
 * **Runaway Cost**: Quotas + Infracost gates + anomaly alerts; Karpenter consolidation; schedule down non‑prod.
 
----
 
 ---
 
