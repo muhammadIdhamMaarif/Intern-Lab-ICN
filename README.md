@@ -5,7 +5,7 @@
 ### 🚀 **Hybrid Multi-Cloud | Zero-Trust | Everything as Code**
 
 ![Status](https://img.shields.io/badge/Status-On%20Development-orange?style=for-the-badge&logo=github)
-![License](https://img.shields.io/badge/License-GNU%20GPLv3-green?style=for-the-badge&logo=gnu)
+![License](https://img.shields.io/badge/License-GPL%203.0-green?style=for-the-badge&logo=gnu)
 ![IaC](https://img.shields.io/badge/Infrastructure-As%20Code-4CAF50?style=for-the-badge&logo=terraform)
 ![Cloud](https://img.shields.io/badge/Multi--Cloud-AWS%20%7C%20Azure%20%7C%20GCP-0078D4?style=for-the-badge)
 ![CI/CD](https://img.shields.io/badge/CI/CD-GitHub%20Actions-black?style=for-the-badge&logo=githubactions)
