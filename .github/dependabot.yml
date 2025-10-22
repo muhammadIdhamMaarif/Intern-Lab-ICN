@@ -1,0 +1,524 @@
+version: 2
+
+# --------------------------------------------------------------------
+# Private registries used by this repo (adjust secrets/hosts as needed)
+# --------------------------------------------------------------------
+registries:
+  ghcr:
+    type: docker-registry
+    url: https://ghcr.io
+    username: "${{secrets.DEPENDABOT_GHCR_USERNAME}}"
+    password: "${{secrets.DEPENDABOT_GHCR_TOKEN}}"
+
+  ecr-prod:
+    type: docker-registry
+    url: "https://<AWS_ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com"
+    username: "${{secrets.AWS_ACCESS_KEY_ID}}"
+    password: "${{secrets.AWS_SECRET_ACCESS_KEY}}"
+
+  npm-github:
+    type: npm-registry
+    url: "https://npm.pkg.github.com"
+    token: "${{secrets.NPM_GITHUB_TOKEN}}"
+
+  rubygems-private:
+    type: rubygems-server
+    url: "https://rubygems.pkg.github.com/<org>"
+    username: "${{secrets.GITHUB_USERNAME}}"
+    password: "${{secrets.GITHUB_TOKEN}}"
+
+  # Use if you host private TF modules/providers (Terraform Enterprise or self-hosted)
+  terraform-private:
+    type: terraform-registry
+    url: "https://app.terraform.io/api/v2" # change to your private registry base URL
+    token: "${{secrets.TERRAFORM_REGISTRY_TOKEN}}"
+
+# --------------------------------------------------------------------
+# Update jobs
+# Notes:
+# - Schedules use Asia/Jakarta to align with local working hours.
+# - Groups keep PR noise manageable while preserving security velocity.
+# - "ignore" blocks prevent risky sweeping majors unless explicitly planned.
+# - Add/remove directories to match your repo structure (kept to design-only tech).
+# --------------------------------------------------------------------
+updates:
+  # =========================
+  # 1) GitHub Actions
+  # =========================
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: daily
+      time: "09:00"
+      timezone: "Asia/Jakarta"
+    open-pull-requests-limit: 25
+    rebase-strategy: auto
+    commit-message:
+      prefix: "deps(actions):"
+      include: "scope"
+    labels: ["dependencies", "ci", "automated"]
+    groups:
+      core-actions:
+        applies-to: version-updates
+        patterns:
+          - "actions/*"
+          - "github/*"
+          - "actions-deploy/*"
+          - "actions-ecosystem/*"
+      cloud-actions:
+        applies-to: version-updates
+        patterns:
+          - "aws-actions/*"
+          - "azure/*"
+          - "google-github-actions/*"
+      security-hardening:
+        applies-to: version-updates
+        patterns:
+          - "aquasecurity/*"
+          - "anchore/*"
+          - "trufflesecurity/*"
+          - "github/codeql-action*"
+    ignore:
+      # Keep majors manual to avoid workflow breakage
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  # =========================
+  # 2) Frontend — Angular (npm)
+  # Adjust directories to where your Angular app(s) actually live.
+  # =========================
+  - package-ecosystem: "npm"
+    directory: "/apps/frontend" # Angular app root (package.json)
+    schedule:
+      interval: weekly
+      day: "monday"
+      time: "09:30"
+      timezone: "Asia/Jakarta"
+    registries: ["npm-github"]
+    open-pull-requests-limit: 20
+    rebase-strategy: auto
+    versioning-strategy: increase
+    pull-request-branch-name:
+      separator: "-"
+    commit-message:
+      prefix: "deps(frontend):"
+      prefix-development: "deps(dev-frontend):"
+      include: "scope"
+    allow:
+      - dependency-type: "direct"
+    groups:
+      angular-core:
+        applies-to: version-updates
+        patterns:
+          - "@angular/*"
+          - "rxjs"
+          - "zone.js"
+        update-types: ["minor", "patch"]
+      angular-tooling:
+        applies-to: version-updates
+        patterns:
+          - "typescript"
+          - "eslint*"
+          - "@typescript-eslint/*"
+          - "prettier"
+          - "jest*"
+          - "vitest*"
+          - "cypress*"
+        update-types: ["minor", "patch"]
+      frontend-security:
+        applies-to: security-updates
+        patterns: ["*"]
+    ignore:
+      # Keep majors for batch upgrades / migrations
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  # (Optional) Backstage portal uses Node too; include if you keep it in /backstage
+  - package-ecosystem: "npm"
+    directory: "/backstage"
+    schedule:
+      interval: weekly
+      day: "tuesday"
+      time: "09:45"
+      timezone: "Asia/Jakarta"
+    registries: ["npm-github"]
+    open-pull-requests-limit: 10
+    rebase-strategy: auto
+    versioning-strategy: increase
+    labels: ["dependencies", "devx", "automated"]
+    groups:
+      backstage-core:
+        applies-to: version-updates
+        patterns:
+          - "@backstage/*"
+          - "react*"
+          - "material-ui*"
+        update-types: ["minor", "patch"]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  # =========================
+  # 3) Backend — Ruby on Rails (bundler)
+  # Adjust directory to your Rails app root (Gemfile present).
+  # =========================
+  - package-ecosystem: "bundler"
+    directory: "/apps/backend"
+    schedule:
+      interval: weekly
+      day: "wednesday"
+      time: "10:00"
+      timezone: "Asia/Jakarta"
+    registries: ["rubygems-private"]
+    open-pull-requests-limit: 20
+    rebase-strategy: auto
+    versioning-strategy: increase
+    commit-message:
+      prefix: "deps(backend):"
+      include: "scope"
+    allow:
+      - dependency-type: "direct"
+    groups:
+      rails-core:
+        applies-to: version-updates
+        patterns:
+          - "rails"
+          - "activesupport"
+          - "activerecord"
+          - "actionpack"
+          - "actionmailer"
+        update-types: ["minor", "patch"]
+      rails-runtime:
+        applies-to: version-updates
+        patterns:
+          - "puma"
+          - "sidekiq"
+          - "pg"
+          - "redis*"
+          - "bootsnap"
+        update-types: ["minor", "patch"]
+      rails-security:
+        applies-to: security-updates
+        patterns: ["*"]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  # =========================
+  # 4) Terraform / Terragrunt estate
+  # (Dependabot scans *.tf; Terragrunt is indirectly covered via module/provider pins)
+  # Add/trim directories as your env/module layout evolves.
+  # =========================
+  - package-ecosystem: "terraform"
+    directory: "/modules/aws"
+    schedule:
+      interval: weekly
+      day: "thursday"
+      time: "09:15"
+      timezone: "Asia/Jakarta"
+    registries: ["terraform-private"]
+    open-pull-requests-limit: 25
+    rebase-strategy: auto
+    commit-message:
+      prefix: "deps(tf-aws):"
+      include: "scope"
+    groups:
+      providers-aws:
+        applies-to: version-updates
+        patterns:
+          - "hashicorp/aws"
+          - "hashicorp/random"
+          - "hashicorp/tls"
+          - "hashicorp/cloudinit"
+        update-types: ["minor", "patch"]
+      modules-aws:
+        applies-to: version-updates
+        patterns:
+          - "terraform-aws-modules/*"
+          - "aws-ia/*"
+        update-types: ["minor", "patch"]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: "terraform"
+    directory: "/modules/azure"
+    schedule:
+      interval: weekly
+      day: "thursday"
+      time: "09:20"
+      timezone: "Asia/Jakarta"
+    registries: ["terraform-private"]
+    open-pull-requests-limit: 20
+    commit-message:
+      prefix: "deps(tf-azure):"
+      include: "scope"
+    groups:
+      providers-azure:
+        applies-to: version-updates
+        patterns:
+          - "hashicorp/azurerm"
+          - "hashicorp/random"
+          - "hashicorp/tls"
+        update-types: ["minor", "patch"]
+      modules-azure:
+        applies-to: version-updates
+        patterns:
+          - "Azure/*"
+        update-types: ["minor", "patch"]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: "terraform"
+    directory: "/modules/gcp"
+    schedule:
+      interval: weekly
+      day: "thursday"
+      time: "09:25"
+      timezone: "Asia/Jakarta"
+    registries: ["terraform-private"]
+    open-pull-requests-limit: 20
+    commit-message:
+      prefix: "deps(tf-gcp):"
+      include: "scope"
+    groups:
+      providers-gcp:
+        applies-to: version-updates
+        patterns:
+          - "hashicorp/google"
+          - "hashicorp/google-beta"
+          - "hashicorp/random"
+          - "hashicorp/tls"
+        update-types: ["minor", "patch"]
+      modules-gcp:
+        applies-to: version-updates
+        patterns:
+          - "terraform-google-modules/*"
+        update-types: ["minor", "patch"]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: "terraform"
+    directory: "/onprem/terraform"
+    schedule:
+      interval: weekly
+      day: "friday"
+      time: "09:15"
+      timezone: "Asia/Jakarta"
+    registries: ["terraform-private"]
+    open-pull-requests-limit: 15
+    commit-message:
+      prefix: "deps(tf-onprem):"
+      include: "scope"
+    groups:
+      providers-onprem:
+        applies-to: version-updates
+        patterns:
+          - "vmware/*"
+          - "hashicorp/vsphere"
+          - "nsxt-dev/*"
+          - "netapp/*"
+        update-types: ["minor", "patch"]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  # Per-environment overlays (add more for each env/region as needed)
+  - package-ecosystem: "terraform"
+    directory: "/envs/prod/us-east-1"
+    schedule:
+      interval: daily
+      time: "09:10"
+      timezone: "Asia/Jakarta"
+    registries: ["terraform-private"]
+    open-pull-requests-limit: 25
+    commit-message:
+      prefix: "deps(tf-prod-us-east-1):"
+      include: "scope"
+    groups:
+      prod-providers:
+        applies-to: version-updates
+        patterns: ["hashicorp/*"]
+        update-types: ["patch"] # prod: keep to patch by default
+      prod-modules:
+        applies-to: version-updates
+        patterns:
+          - "terraform-aws-modules/*"
+          - "aws-ia/*"
+        update-types: ["patch"]
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          ["version-update:semver-major", "version-update:semver-minor"]
+
+  - package-ecosystem: "terraform"
+    directory: "/envs/prod/eu-west-1"
+    schedule:
+      interval: daily
+      time: "09:12"
+      timezone: "Asia/Jakarta"
+    registries: ["terraform-private"]
+    open-pull-requests-limit: 25
+    commit-message:
+      prefix: "deps(tf-prod-eu-west-1):"
+      include: "scope"
+    groups:
+      prod-providers:
+        applies-to: version-updates
+        patterns: ["hashicorp/*"]
+        update-types: ["patch"]
+      prod-modules:
+        applies-to: version-updates
+        patterns:
+          - "terraform-aws-modules/*"
+          - "aws-ia/*"
+        update-types: ["patch"]
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          ["version-update:semver-major", "version-update:semver-minor"]
+
+  - package-ecosystem: "terraform"
+    directory: "/envs/staging"
+    schedule:
+      interval: weekly
+      day: "friday"
+      time: "09:20"
+      timezone: "Asia/Jakarta"
+    registries: ["terraform-private"]
+    open-pull-requests-limit: 20
+    commit-message:
+      prefix: "deps(tf-staging):"
+      include: "scope"
+    groups:
+      staging-all:
+        applies-to: version-updates
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: "terraform"
+    directory: "/envs/dev"
+    schedule:
+      interval: weekly
+      day: "friday"
+      time: "09:25"
+      timezone: "Asia/Jakarta"
+    registries: ["terraform-private"]
+    open-pull-requests-limit: 20
+    commit-message:
+      prefix: "deps(tf-dev):"
+      include: "scope"
+    groups:
+      dev-all:
+        applies-to: version-updates
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+
+  # =========================
+  # 5) Docker (base images for Angular/Rails, devcontainers, etc.)
+  # Add additional directories if you keep per-service Dockerfiles.
+  # =========================
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: "tuesday"
+      time: "10:15"
+      timezone: "Asia/Jakarta"
+    registries: ["ghcr", "ecr-prod"]
+    open-pull-requests-limit: 15
+    commit-message:
+      prefix: "deps(docker-root):"
+      include: "scope"
+    groups:
+      runtimes:
+        applies-to: version-updates
+        patterns:
+          - "node"
+          - "ruby"
+          - "python"
+          - "golang"
+      bases:
+        applies-to: version-updates
+        patterns:
+          - "ubuntu"
+          - "debian"
+          - "alpine"
+          - "nginx"
+          - "redis"
+          - "postgres"
+    ignore:
+      # Hold distro majors for explicit migration windows
+      - dependency-name: "ubuntu"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "debian"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "alpine"
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: "docker"
+    directory: "/toolchain/devcontainer"
+    schedule:
+      interval: monthly
+      time: "10:20"
+      timezone: "Asia/Jakarta"
+    registries: ["ghcr"]
+    commit-message:
+      prefix: "deps(devcontainer):"
+      include: "scope"
+
+  # =========================
+  # 6) Go (TerraTest and infra tooling)
+  # =========================
+  - package-ecosystem: "gomod"
+    directory: "/tests/terratest"
+    schedule:
+      interval: weekly
+      day: "wednesday"
+      time: "10:30"
+      timezone: "Asia/Jakarta"
+    open-pull-requests-limit: 10
+    rebase-strategy: auto
+    commit-message:
+      prefix: "deps(go-tests):"
+      include: "scope"
+    groups:
+      go-test:
+        applies-to: version-updates
+        patterns:
+          - "github.com/*"
+          - "golang.org/*"
+        update-types: ["minor", "patch"]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  # =========================
+  # 7) Docs site (MkDocs & plugins via pip) — optional if you pin Python deps
+  # =========================
+  - package-ecosystem: "pip"
+    directory: "/docs"
+    schedule:
+      interval: monthly
+      time: "10:45"
+      timezone: "Asia/Jakarta"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "deps(docs):"
+      include: "scope"
+    groups:
+      mkdocs:
+        applies-to: version-updates
+        patterns:
+          - "mkdocs"
+          - "mkdocs-*"
+          - "pymdown-extensions"
+        update-types: ["minor", "patch"]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]

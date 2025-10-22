@@ -1,37 +1,345 @@
-# Local .terraform directories
-.terraform/
+################################################################################
+# Global / OS / Editors
+################################################################################
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+.Spotlight-V100
+.Trashes
 
-# .tfstate files
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# Editors & project-local settings
+.idea/
+.vscode/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+.fleet/
+.history/
+*.swp
+*.swo
+*~
+*.orig
+.tags
+
+# direnv
+.envrc
+.direnv/
+
+################################################################################
+# Secrets & environment (no secrets in git)
+################################################################################
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Common key/cert formats
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.csr
+*.der
+*.jks
+*.keystore
+*.gpg
+*.age
+*.asc
+
+# Tooling configs that may contain tokens
+.npmrc
+.yarnrc
+.yarnrc.yml
+.gemrc
+.pypirc
+
+# AWS/GCP/Azure creds dropped locally by mistake
+.aws/
+.gcp/
+.azure/
+
+################################################################################
+# Node / Angular / Backstage / Web assets
+################################################################################
+node_modules/
+bower_components/
+.npm/
+.npm-cache/
+.pnpm-store/
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+
+# Angular
+.angular/
+.angular/cache/
+dist/
+tmp/
+temp/
+.eslintcache
+coverage/
+*.log
+
+# Frontend build artifacts
+.cache/
+**/.cache/
+*.map
+
+# Docusaurus & MkDocs (docs-as-code)
+.docusaurus/
+build/
+site/
+
+################################################################################
+# Ruby on Rails (API/backend)
+################################################################################
+/.bundle/
+/vendor/bundle/
+/log/*
+/tmp/*
+!/log/.keep
+!/tmp/.keep
+
+# Rails storage & compiled assets
+/storage/*
+!/storage/.keep
+/public/assets
+/public/packs
+/public/packs-test
+/public/system
+
+# PID / cache / spring / bootsnap
+/tmp/pids/*.pid
+/tmp/pids/*.pid.lock
+/tmp/cache/
+!/tmp/cache/.keep
+.spring/
+tmp/bootsnap-*
+
+# SQLite (dev/test)
+db/*.sqlite3
+db/*.sqlite3-*
+
+# Rails credentials keys (keep encrypted files, ignore keys)
+config/master.key
+config/credentials/*.key
+
+# Debug / tooling caches
+.byebug_history
+.sass-cache/
+.rspec_status
+.rubocop-https*
+coverage/
+
+# Keep lock file (important for reproducible builds)
+!Gemfile.lock
+
+################################################################################
+# Terraform / Terragrunt / IaC
+################################################################################
+# Terraform core
+.terraform/
+.terraform.d/
 *.tfstate
 *.tfstate.*
-
-# Crash log files
 crash.log
 crash.*.log
 
-# Exclude all .tfvars files, which are likely to contain sensitive data, such as
-# password, private keys, and other secrets. These should not be part of version 
-# control as they are data points which are potentially sensitive and subject 
-# to change depending on the environment.
+# Sensitive variable files & plans
 *.tfvars
 *.tfvars.json
+*.tfplan
 
-# Ignore override files as they are usually used to override resources locally and so
-# are not checked in
+# Local overrides
 override.tf
 override.tf.json
 *_override.tf
 *_override.tf.json
 
-# Ignore transient lock info files created by terraform apply
-.terraform.tfstate.lock.info
+# Keep dependency lock in VCS
+!.terraform.lock.hcl
 
-# Include override files you do wish to add to version control using negated pattern
-# !example_override.tf
+# Terragrunt
+.terragrunt-cache/
+**/.terragrunt-cache/
+.terragrunt-cache-*
+*.hcl.backup
+terragrunt-debug.tfvars.json
 
-# Include tfplan files to ignore the plan output of command: terraform plan -out=tfplan
-# example: *tfplan*
+# Terraformer (drift import) default outputs
+generated/
+terraformer/
 
-# Ignore CLI configuration files
-.terraformrc
-terraform.rc
+# Infracost local artifacts
+.infracost/
+infracost*.json
+
+################################################################################
+# Kubernetes / Helm / GitOps
+################################################################################
+# Helm chart packages (keep Chart.lock)
+**/charts/**/*.tgz
+**/helm/**/*.tgz
+**/*.helm.tgz
+!**/Chart.lock
+
+# Kustomize & rendered manifests (if accidentally exported)
+manifests-rendered/
+kustomize-build/
+
+# OPA/Conftest/Kyverno bundles & temp
+policy-bundle*.tar.gz
+*.rego.tmp
+conftest.tmp/
+
+################################################################################
+# Ansible (on-prem automation)
+################################################################################
+*.retry
+.ansible/
+ansible.log
+# Ansible Galaxy cache (if vendored locally)
+roles/*/.cache/
+inventories/*/.cache/
+
+################################################################################
+# Packer (images/AMIs)
+################################################################################
+packer_cache/
+**/packer_cache/
+output-*/
+packer.log
+*.box
+# Keep plugin lock (important)
+!**/packer-plugin.lock.hcl
+
+################################################################################
+# Go (Terratest, tools)
+################################################################################
+bin/
+*.exe
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+coverage.out
+*.cov
+*.coverprofile
+*.pprof
+
+# Keep Go modules
+!go.mod
+!go.sum
+
+################################################################################
+# Python (scripts/, tooling)
+################################################################################
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+env/
+pip-wheel-metadata/
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.dmypy.json
+.pyre/
+.ruff_cache/
+
+################################################################################
+# Observability, test artifacts, reports
+################################################################################
+# k6 results, HARs, load-test outputs
+k6-*.json
+k6-*.csv
+*.har
+
+# Generic reports/test outputs
+reports/
+report/
+test-results/
+junit*.xml
+*.sarif
+
+################################################################################
+# Containers / Dev tooling
+################################################################################
+# Devcontainer local-only bits
+.devcontainer/*.local
+.devcontainer/.env
+
+# Docker-compose overrides & local envs (if used)
+docker-compose.override.yml
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+################################################################################
+# Misc
+################################################################################
+# Lockfiles we DO want in VCS (do not ignore)
+!package-lock.json
+!yarn.lock
+!pnpm-lock.yaml
+
+# Archives & backups
+*.gz
+*.zip
+*.bz2
+*.xz
+*.bak
+*.tmp
+*.temp
+*.swp
+*.swo
+
+# Keep repository documentation & IaC manifests as code
+!.md
+!.adoc
+!.mkd
+!.rst
+!.yaml
+!.yml
+!.json
+!.hcl
+!.tf
+!.tfvars.example
+!.pkr.hcl
+!.rego
+!.sh
+!.ps1
+!.go
+!.rb
+!.py
+!.ts
+!.tsx
+!.js
+!.jsx
+!.mmd
+!.puml
+
