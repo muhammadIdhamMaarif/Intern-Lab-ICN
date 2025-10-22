@@ -1,0 +1,43 @@
+name: "CodeQL config — Angular + Rails monorepo"
+
+# Keep both suites: broader coverage for Rails & front-end sinks (XSS/SSRF/SQLi/etc.)
+queries:
+  - uses: security-extended
+  - uses: security-and-quality
+
+# Focus CodeQL on code-bearing areas from your design; ignore heavy IaC/ops folders.
+paths:
+  - apps/** # Angular apps, shared TS libs
+  - services/** # Optional service code
+  - frontend/** # If you keep Angular here
+  - backend/** # Rails apps / engines
+  - lib/** # Shared Ruby/JS libs
+  - scripts/** # Utility scripts (py/rb/js)
+  - tests/terratest/** # Go Terratest code
+  - tests/** # Other code-bearing tests
+  - toolchain/** # Dev helpers that may include code
+
+paths-ignore:
+  # IaC / Ops (handled by tfsec, Checkov, conftest, Kyverno tests elsewhere)
+  - modules/** # Terraform modules
+  - envs/** # Terragrunt overlays
+  - onprem/** # Terraform + Ansible
+  - kubernetes/** # K8s manifests (YAML)
+  - policies/** # Rego/Kyverno/Sentinel/etc.
+  - packer/** # Packer HCL
+  - finops/** # SQL/athena queries & dashboards
+  - observability/** # Grafana JSON, Prom rules, Loki queries
+  - security/** # Cosign/SBOM/policy bundles
+  - runbooks/** # Markdown docs
+  - docs/** # Docs site & diagrams
+  - adr/** # ADRs (markdown)
+  - .github/** # Actions workflows (scanned by other checks)
+  - toolchain/devcontainer/** # Devcontainer configs
+  - "**/node_modules/**"
+  - "**/dist/**"
+  - "**/build/**"
+  - "**/.venv/**"
+  - "**/vendor/**"
+  - "**/*.min.js"
+  - "**/*.map"
+  - "**/*.md"
