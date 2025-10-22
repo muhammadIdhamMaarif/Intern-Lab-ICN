@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🌐 Cloud Platform Infrastructure for Lab ICN Intern 🌐
+# 🌐 Infrastructure for ICN Intern 🌐
 
 ### 🚀 **Hybrid Multi-Cloud | Zero-Trust | Everything as Code**
 
