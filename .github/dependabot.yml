@@ -1,50 +1,41 @@
 version: 2
 
-# --------------------------------------------------------------------
-# Private registries used by this repo (adjust secrets/hosts as needed)
-# --------------------------------------------------------------------
 registries:
+  # Docker registries (URLs must include scheme + host, e.g., https://ghcr.io)
   ghcr:
     type: docker-registry
-    url: https://ghcr.io
+    url: "https://ghcr.io"
     username: "${{secrets.DEPENDABOT_GHCR_USERNAME}}"
     password: "${{secrets.DEPENDABOT_GHCR_TOKEN}}"
 
-  ecr-prod:
+  # Example ECR registry (replace account/region with your own or remove if unused)
+  ecr-us-east-1:
     type: docker-registry
-    url: "https://<AWS_ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com"
+    url: "https://123456789012.dkr.ecr.us-east-1.amazonaws.com"
     username: "${{secrets.AWS_ACCESS_KEY_ID}}"
     password: "${{secrets.AWS_SECRET_ACCESS_KEY}}"
 
+  # NPM (for Angular + Backstage if using GitHub Packages)
   npm-github:
     type: npm-registry
     url: "https://npm.pkg.github.com"
     token: "${{secrets.NPM_GITHUB_TOKEN}}"
 
+  # RubyGems (Rails), if you publish private gems to GitHub Packages
   rubygems-private:
     type: rubygems-server
     url: "https://rubygems.pkg.github.com/<org>"
     username: "${{secrets.GITHUB_USERNAME}}"
     password: "${{secrets.GITHUB_TOKEN}}"
 
-  # Use if you host private TF modules/providers (Terraform Enterprise or self-hosted)
+  # Private Terraform registry (e.g., Terraform Cloud or self-hosted)
   terraform-private:
     type: terraform-registry
-    url: "https://app.terraform.io/api/v2" # change to your private registry base URL
+    url: "https://app.terraform.io/api/v2"
     token: "${{secrets.TERRAFORM_REGISTRY_TOKEN}}"
 
-# --------------------------------------------------------------------
-# Update jobs
-# Notes:
-# - Schedules use Asia/Jakarta to align with local working hours.
-# - Groups keep PR noise manageable while preserving security velocity.
-# - "ignore" blocks prevent risky sweeping majors unless explicitly planned.
-# - Add/remove directories to match your repo structure (kept to design-only tech).
-# --------------------------------------------------------------------
 updates:
-  # =========================
   # 1) GitHub Actions
-  # =========================
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
@@ -79,16 +70,12 @@ updates:
           - "trufflesecurity/*"
           - "github/codeql-action*"
     ignore:
-      # Keep majors manual to avoid workflow breakage
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
 
-  # =========================
   # 2) Frontend — Angular (npm)
-  # Adjust directories to where your Angular app(s) actually live.
-  # =========================
   - package-ecosystem: "npm"
-    directory: "/apps/frontend" # Angular app root (package.json)
+    directory: "/apps/frontend"
     schedule:
       interval: weekly
       day: "monday"
@@ -129,11 +116,10 @@ updates:
         applies-to: security-updates
         patterns: ["*"]
     ignore:
-      # Keep majors for batch upgrades / migrations
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
 
-  # (Optional) Backstage portal uses Node too; include if you keep it in /backstage
+  # (Optional) Backstage (Node) if present
   - package-ecosystem: "npm"
     directory: "/backstage"
     schedule:
@@ -158,10 +144,7 @@ updates:
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
 
-  # =========================
   # 3) Backend — Ruby on Rails (bundler)
-  # Adjust directory to your Rails app root (Gemfile present).
-  # =========================
   - package-ecosystem: "bundler"
     directory: "/apps/backend"
     schedule:
@@ -172,7 +155,7 @@ updates:
     registries: ["rubygems-private"]
     open-pull-requests-limit: 20
     rebase-strategy: auto
-    versioning-strategy: increase
+    versioning-strategy: auto
     commit-message:
       prefix: "deps(backend):"
       include: "scope"
@@ -204,11 +187,7 @@ updates:
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
 
-  # =========================
-  # 4) Terraform / Terragrunt estate
-  # (Dependabot scans *.tf; Terragrunt is indirectly covered via module/provider pins)
-  # Add/trim directories as your env/module layout evolves.
-  # =========================
+  # 4) Terraform / Terragrunt — modules
   - package-ecosystem: "terraform"
     directory: "/modules/aws"
     schedule:
@@ -325,7 +304,7 @@ updates:
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
 
-  # Per-environment overlays (add more for each env/region as needed)
+  # Per-environment overlays
   - package-ecosystem: "terraform"
     directory: "/envs/prod/us-east-1"
     schedule:
@@ -341,7 +320,7 @@ updates:
       prod-providers:
         applies-to: version-updates
         patterns: ["hashicorp/*"]
-        update-types: ["patch"] # prod: keep to patch by default
+        update-types: ["patch"]
       prod-modules:
         applies-to: version-updates
         patterns:
@@ -350,8 +329,7 @@ updates:
         update-types: ["patch"]
     ignore:
       - dependency-name: "*"
-        update-types:
-          ["version-update:semver-major", "version-update:semver-minor"]
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
 
   - package-ecosystem: "terraform"
     directory: "/envs/prod/eu-west-1"
@@ -377,8 +355,7 @@ updates:
         update-types: ["patch"]
     ignore:
       - dependency-name: "*"
-        update-types:
-          ["version-update:semver-major", "version-update:semver-minor"]
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
 
   - package-ecosystem: "terraform"
     directory: "/envs/staging"
@@ -419,10 +396,7 @@ updates:
         patterns: ["*"]
         update-types: ["minor", "patch"]
 
-  # =========================
-  # 5) Docker (base images for Angular/Rails, devcontainers, etc.)
-  # Add additional directories if you keep per-service Dockerfiles.
-  # =========================
+  # 5) Dockerfiles (root)
   - package-ecosystem: "docker"
     directory: "/"
     schedule:
@@ -430,7 +404,7 @@ updates:
       day: "tuesday"
       time: "10:15"
       timezone: "Asia/Jakarta"
-    registries: ["ghcr", "ecr-prod"]
+    registries: ["ghcr", "ecr-us-east-1"]
     open-pull-requests-limit: 15
     commit-message:
       prefix: "deps(docker-root):"
@@ -453,7 +427,6 @@ updates:
           - "redis"
           - "postgres"
     ignore:
-      # Hold distro majors for explicit migration windows
       - dependency-name: "ubuntu"
         update-types: ["version-update:semver-major"]
       - dependency-name: "debian"
@@ -461,6 +434,7 @@ updates:
       - dependency-name: "alpine"
         update-types: ["version-update:semver-major"]
 
+  # 6) Devcontainer Dockerfile (optional)
   - package-ecosystem: "docker"
     directory: "/toolchain/devcontainer"
     schedule:
@@ -472,9 +446,7 @@ updates:
       prefix: "deps(devcontainer):"
       include: "scope"
 
-  # =========================
-  # 6) Go (TerraTest and infra tooling)
-  # =========================
+  # 7) Go (TerraTest)
   - package-ecosystem: "gomod"
     directory: "/tests/terratest"
     schedule:
@@ -498,9 +470,7 @@ updates:
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
 
-  # =========================
-  # 7) Docs site (MkDocs & plugins via pip) — optional if you pin Python deps
-  # =========================
+  # 8) Docs site (MkDocs via pip) — optional
   - package-ecosystem: "pip"
     directory: "/docs"
     schedule:
