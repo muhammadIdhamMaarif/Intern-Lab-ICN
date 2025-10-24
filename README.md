@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🌐 Infrastructure for ICN Intern 🌐
+# 🌐 Infrastructure for Kyara 🌐
 
 ### 🚀 **Hybrid Multi-Cloud | Zero-Trust | Everything as Code**
 
